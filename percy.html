@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caça-Palavras: Clarinho</title>
+    <style>
+        :root {
+            --romance-pink: #d81b60;
+            --romance-purple: #4a148c;
+            --romance-gold: #ffb300;
+            --romance-cream: #fff5f8;
+            --romance-hover: #fce4ec;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background-color: var(--romance-purple);
+            color: #2b2b2b;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: var(--romance-cream);
+            border: 6px solid var(--romance-gold);
+            border-radius: 12px;
+            padding: 25px;
+            max-width: 950px;
+            width: 100%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--romance-pink);
+            margin-bottom: 5px;
+            font-size: 1.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #6a1b9a;
+            font-size: 0.95rem;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .game-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        @media (min-width: 850px) {
+            .game-area {
+                flex-direction: row;
+                align-items: flex-start;
+                justify-content: space-around;
+            }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(22, 22px);
+            grid-template-rows: repeat(22, 22px);
+            gap: 1px;
+            background-color: var(--romance-gold);
+            padding: 3px;
+            border-radius: 6px;
+            user-select: none;
+        }
+
+        .cell {
+            background-color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.65rem;
+            color: #2b2b2b;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .cell:hover {
+            background-color: var(--romance-hover);
+        }
+
+        .cell.selected {
+            background-color: var(--romance-pink);
+            color: white;
+        }
+
+        .cell.found {
+            background-color: #2e7d32;
+            color: white;
+        }
+
+        .words-section {
+            background: #fce4ec;
+            padding: 15px;
+            border-radius: 6px;
+            border: 2px dashed var(--romance-pink);
+            max-height: 480px;
+            overflow-y: auto;
+            width: 280px;
+        }
+
+        .words-section h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: var(--romance-pink);
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .words-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            font-size: 0.75rem;
+            columns: 2;
+            column-gap: 10px;
+        }
+
+        .words-list li {
+            margin-bottom: 5px;
+            transition: color 0.3s;
+            word-break: break-all;
+        }
+
+        .words-list li.found {
+            text-decoration: line-through;
+            color: #7f8c8d;
+        }
+
+        .controls {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        button {
+            background-color: var(--romance-pink);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #ad1457;
+        }
+
+        #message {
+            margin-top: 10px;
+            text-align: center;
+            font-weight: bold;
+            color: #2e7d32;
+            min-height: 20px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Clarinho</h1>
+    <div class="subtitle">Caça-Palavras Nível Expert: Nosso Universo</div>
+    
+    <div class="game-area">
+        <div id="grid" class="grid"></div>
+        
+        <div class="words-section">
+            <h3>Palavras:</h3>
+            <ul id="wordsList" class="words-list"></ul>
+        </div>
+    </div>
+
+    <div id="message"></div>
+    
+    <div class="controls">
+        <button onclick="resetGame()">Reiniciar Jogo</button>
+    </div>
+</div>
+
+<script>
+    const words = [
+        "SABIDINHA", "DORAMA", "AMOR", "FLORES", 
+        "ANIMES", "DORMIR", "COMER", "HAMBURGUER", 
+        "AZEITONA", "FRUTAS", "CINEMA", "COISICOISANTES", 
+        "FIGURINHADOVELO", "SUVACO", "POSEIDON", "HOMEMDEFERRO", 
+        "HOMEMARANHA", "EPIC", "PIRATARIA", "THESIMS", 
+        "SETEXZERO", "GARTIC", "CARRINHO", "COMPANHIA", 
+        "CARINHO", "BEIJO", "SORRISO", "ETERNO"
+    ];
+
+    const gridSize = 22;
+    let grid = [];
+    let selectedCells = [];
+    let foundWords = [];
+    let isMouseDown = false;
+    let startCoord = null;
+
+    const placementData = [
+        { word: "SABIDINHA", r: 0, c: 0, dr: 0, dc: 1 },
+        { word: "DORAMA", r: 1, c: 0, dr: 1, dc: 0 },
+        { word: "AMOR", r: 2, c: 5, dr: 1, dc: 1 },
+        { word: "FLORES", r: 3, c: 15, dr: 0, dc: -1 },
+        { word: "ANIMES", r: 4, c: 2, dr: 1, dc: 0 },
+        { word: "DORMIR", r: 5, c: 8, dr: -1, dc: 1 },
+        { word: "COMER", r: 6, c: 0, dr: 0, dc: 1 },
+        { word: "HAMBURGUER", r: 7, c: 10, dr: 0, dc: 1 },
+        { word: "AZEITONA", r: 8, c: 1, dr: 1, dc: 1 },
+        { word: "FRUTAS", r: 9, c: 12, dr: 1, dc: 0 },
+        { word: "CINEMA", r: 10, c: 4, dr: 0, dc: -1 },
+        { word: "COISICOISANTES", r: 11, c: 0, dr: 0, dc: 1 },
+        { word: "FIGURINHADOVELO", r: 12, c: 2, dr: 1, dc: 0 },
+        { word: "SUVACO", r: 13, c: 14, dr: 0, dc: 1 },
+        { word: "POSEIDON", r: 14, c: 3, dr: -1, dc: 1 },
+        { word: "HOMEMDEFERRO", r: 15, c: 5, dr: 0, dc: 1 },
+        { word: "HOMEMARANHA", r: 16, c: 0, dr: 1, dc: 1 },
+        { word: "EPIC", r: 17, c: 15, dr: 0, dc: -1 },
+        { word: "PIRATARIA", r: 18, c: 2, dr: 0, dc: 1 },
+        { word: "THESIMS", r: 19, c: 1, dr: 1, dc: 0 },
+        { word: "SETEXZERO", r: 20, c: 5, dr: 0, dc: 1 },
+        { word: "GARTIC", r: 21, c: 12, dr: 0, dc: 1 },
+        { word: "CARRINHO", r: 0, c: 21, dr: 1, dc: 0 },
+        { word: "COMPANHIA", r: 2, c: 21, dr: 1, dc: 0 },
+        { word: "CARINHO", r: 4, c: 21, dr: 1, dc: 0 },
+        { word: "BEIJO", r: 6, c: 21, dr: 1, dc: 0 },
+        { word: "SORRISO", r: 8, c: 21, dr: 1, dc: 0 },
+        { word: "ETERNO", r: 10, c: 21, dr: 1, dc: 0 }
+    ];
+
+    function initGame() {
+        foundWords = [];
+        document.getElementById('message').innerText = '';
+        createGridArray();
+        renderGrid();
+        renderWordsList();
+    }
+
+    function createGridArray() {
+        grid = Array(gridSize).fill(null).map(() => Array(gridSize).fill(''));
+
+        placementData.forEach(item => {
+            let currR = item.r;
+            let currC = item.c;
+            for (let i = 0; i < item.word.length; i++) {
+                if (currR >= 0 && currR < gridSize && currC >= 0 && currC < gridSize) {
+                    grid[currR][currC] = item.word[i];
+                    currR += item.dr;
+                    currC += item.dc;
+                }
+            }
+        });
+
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        for (let r = 0; r < gridSize; r++) {
+            for (let c = 0; c < gridSize; c++) {
+                if (grid[r][c] === '') {
+                    grid[r][c] = alphabet[Math.floor(Math.random() * alphabet.length)];
+                }
+            }
+        }
+    }
+
+    function renderGrid() {
+        const gridElement = document.getElementById('grid');
+        gridElement.innerHTML = '';
+
+        for (let r = 0; r < gridSize; r++) {
+            for (let c = 0; c < gridSize; c++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.row = r;
+                cell.dataset.col = c;
+                cell.innerText = grid[r][c];
+
+                cell.addEventListener('mousedown', () => startSelection(r, c));
+                cell.addEventListener('mouseenter', () => continueSelection(r, c));
+                cell.addEventListener('mouseup', endSelection);
+
+                gridElement.appendChild(cell);
+            }
+        }
+        
+        document.addEventListener('mouseup', endSelection);
+    }
+
+    function renderWordsList() {
+        const listElement = document.getElementById('wordsList');
+        listElement.innerHTML = '';
+        const uniqueWords = [...new Set(words)];
+        uniqueWords.forEach(w => {
+            const li = document.createElement('li');
+            li.id = `word-${w}`;
+            li.innerText = w;
+            listElement.appendChild(li);
+        });
+    }
+
+    function startSelection(r, c) {
+        isMouseDown = true;
+        startCoord = { r, c };
+        selectedCells = [{ r, c }];
+        updateCellStyles();
+    }
+
+    function continueSelection(r, c) {
+        if (!isMouseDown || !startCoord) return;
+        
+        let dr = r - startCoord.r;
+        let dc = c - startCoord.c;
+        
+        let stepR = dr === 0 ? 0 : dr > 0 ? 1 : -1;
+        let stepC = dc === 0 ? 0 : dc > 0 ? 1 : -1;
+        
+        if (Math.abs(dr) !== Math.abs(dc) && dr !== 0 && dc !== 0) return;
+
+        selectedCells = [];
+        let currR = startCoord.r;
+        let currC = startCoord.c;
+        
+        let steps = Math.max(Math.abs(dr), Math.abs(dc));
+        for (let i = 0; i <= steps; i++) {
+            selectedCells.push({ r: currR, c: currC });
+            currR += stepR;
+            currC += stepC;
+        }
+        updateCellStyles();
+    }
+
+    function endSelection() {
+        if (!isMouseDown) return;
+        isMouseDown = false;
+
+        let formedWord = selectedCells.map(cell => grid[cell.r][cell.c]).join('');
+        let reverseWord = formedWord.split('').reverse().join('');
+
+        let uniqueWords = [...new Set(words)];
+        let matched = uniqueWords.find(w => (w === formedWord || w === reverseWord) && !foundWords.includes(w));
+
+        if (matched) {
+            foundWords.push(matched);
+            document.getElementById(`word-${matched}`).classList.add('found');
+            
+            selectedCells.forEach(cell => {
+                const cellEl = document.querySelector(`.cell[data-row='${cell.r}'][data-col='${cell.c}']`);
+                if (cellEl) cellEl.classList.add('found');
+            });
+
+            if (foundWords.length === uniqueWords.length) {
+                document.getElementById('message').innerText = "Perfeito, Clarinho! Você zerou o nível expert do nosso amor!";
+            }
+        }
+
+        selectedCells = [];
+        updateCellStyles();
+    }
+
+    function updateCellStyles() {
+        document.querySelectorAll('.cell').forEach(cell => {
+            const r = parseInt(cell.dataset.row);
+            const c = parseInt(cell.dataset.col);
+            
+            let isSelected = selectedCells.some(cellCoord => cellCoord.r === r && cellCoord.c === c);
+            
+            if (isSelected) {
+                cell.classList.add('selected');
+            } else {
+                cell.classList.remove('selected');
+            }
+        });
+    }
+
+    function resetGame() {
+        initGame();
+    }
+
+    window.onload = initGame;
+</script>
+
+</body>
+</html>
